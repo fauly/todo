@@ -1,9 +1,10 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const mysql = require('mysql2');
+const path = require('path');
 
 const app = express();
-const PORT = 3002;
+const PORT = 3002; // Adjust this port if needed
 
 // Database connection
 const db = mysql.createConnection({
@@ -22,10 +23,10 @@ db.connect(err => {
 });
 
 app.use(bodyParser.json());
-app.use(express.static('public'));
+app.use('/todo', express.static(path.join(__dirname, 'public')));
 
 // Get tasks
-app.get('/tasks', (req, res) => {
+app.get('/todo/tasks', (req, res) => {
   const query = 'SELECT * FROM tasks';
   db.query(query, (err, results) => {
     if (err) throw err;
@@ -38,7 +39,7 @@ app.get('/tasks', (req, res) => {
 });
 
 // Add task
-app.post('/tasks', (req, res) => {
+app.post('/todo/tasks', (req, res) => {
   const { column, task } = req.body;
   const query = 'INSERT INTO tasks (task, status) VALUES (?, ?)';
   db.query(query, [task, column], (err) => {
@@ -48,7 +49,7 @@ app.post('/tasks', (req, res) => {
 });
 
 // Update tasks
-app.put('/tasks', (req, res) => {
+app.put('/todo/tasks', (req, res) => {
   const { column, tasks } = req.body;
   const deleteQuery = 'DELETE FROM tasks WHERE status = ?';
   db.query(deleteQuery, [column], (err) => {
