@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kanban Board</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        
+        header {
+            text-align: center;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+
+        main {
+            display: flex;
+            justify-content: space-between;
+            flex-grow: 1;
+            width: 100%;
+        }
+
+        .kanban-column {
+            width: 33%;
+            padding: 10px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        #todo {
+            background-color: #ffcccc;
+        }
+
+        #in-progress {
+            background-color: #ffedcc;
+        }
+
+        #done {
+            background-color: #ccffcc;
+        }
+
+        .kanban-column h2 {
+            text-align: center;
+        }
+
+        .task-container {
+            width: 100%;
+            flex-grow: 1;
+            min-height: 0;
+            padding: 10px;
+            border: 1px dashed #ddd;
+            background-color: #fff;
+            border-radius: 5px;
+            overflow-y: auto;
+        }
+
+        .task {
+            background-color: #e7e7e7;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button {
+            display: block;
+            width: 100%;
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <main>
+        <div class="kanban-column" id="todo">
+            <h2>To Do</h2>
+            <div class="task-container" id="todo-tasks"></div>
+            <button onclick="addTask('todo')">Add Task</button>
+        </div>
+        <div class="kanban-column" id="in-progress">
+            <h2>In Progress</h2>
+            <div class="task-container" id="in-progress-tasks"></div>
+        </div>
+        <div class="kanban-column" id="done">
+            <h2>Done</h2>
+            <div class="task-container" id="done-tasks"></div>
+        </div>
+    </main>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            loadTasks();
+            document.querySelectorAll('.task-container').forEach(container => {
+                container.ondragover = allowDrop;
+                container.ondrop = drop;
+            });
+        });
+
+        function loadTasks() {
+            fetch('/tasks')
+                .then(response => response.json())
+                .then(data => {
+                    Object.keys(data).forEach(column => {
+                        data[column].forEach(taskText => {
+                            const task = createTaskElement(taskText);
+                            document.getElementById(`${column}-tasks`).appendChild(task);
+                        });
+                    });
+                });
+        }
+
+        function createTaskElement(taskText) {
+            const task = document.createElement('div');
+            task.className = 'task';
+            task.textContent = taskText;
+            task.draggable = true;
+            task.ondragstart = dragStart;
+            return task;
+        }
+
+        function addTask(column) {
+            const taskText = prompt('Enter task description:');
+            if (taskText) {
+                const task = createTaskElement(taskText);
+                document.getElementById(`${column}-tasks`).appendChild(task);
+                saveTask(column, taskText);
+            }
+        }
+
+        function saveTask(column, taskText) {
+            fetch('/tasks', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ column, task: taskText }),
+            });
+        }
+
+        function allowDrop(event) {
+            event.preventDefault();
+        }
+
+        function dragStart(event) {
+            event.dataTransfer.setData('text/plain', event.target.textContent);
+        }
+
+        function drop(event) {
+            event.preventDefault();
+            const taskText = event.dataTransfer.getData('text/plain');
+            const task = createTaskElement(taskText);
+            if (event.target.classList.contains('task-container')) {
+                event.target.appendChild(task);
+
+                const column = event.target.id.split('-')[0];
+                const tasks = Array.from(event.target.children).map(child => child.textContent);
+                updateTasks(column, tasks);
+            }
+        }
+
+        function updateTasks(column, tasks) {
+            fetch('/tasks', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ column, tasks }),
+            });
+        }
+    </script>
+</body>
+</html>
